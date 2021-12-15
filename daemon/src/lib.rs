@@ -68,12 +68,9 @@ pub mod tx;
 pub mod wallet;
 pub mod wire;
 
-// Certain operations (e.g. contract setup) take long time in debug mode,
-// causing us to lag behind in processing heartbeats.
-// Increasing the value for debug mode makes sure that we don't cause problems
-// when testing / CI, whilst the release can still detect status faster
-pub const HEARTBEAT_INTERVAL: std::time::Duration =
-    Duration::from_secs(if cfg!(debug_assertions) { 45 } else { 5 });
+/// Duration between the heartbeats sent by the maker, used by the taker to
+/// determine whether the maker is online.
+pub const HEARTBEAT_INTERVAL: std::time::Duration = Duration::from_secs(5);
 
 pub const N_PAYOUTS: usize = 200;
 
