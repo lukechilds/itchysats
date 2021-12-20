@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use std::mem;
 use time::Duration;
 
-pub async fn run_migrations(pool: &SqlitePool) -> anyhow::Result<()> {
+pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
     sqlx::migrate!("./migrations")
         .run(pool)
         .await
@@ -18,7 +18,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn insert_cfd(cfd: &Cfd, conn: &mut PoolConnection<Sqlite>) -> anyhow::Result<()> {
+pub async fn insert_cfd(cfd: &Cfd, conn: &mut PoolConnection<Sqlite>) -> Result<()> {
     let state = serde_json::to_string(&cfd.state())?;
     let query_result = sqlx::query(
         r#"
@@ -73,7 +73,7 @@ pub async fn insert_cfd(cfd: &Cfd, conn: &mut PoolConnection<Sqlite>) -> anyhow:
     Ok(())
 }
 
-pub async fn append_cfd_state(cfd: &Cfd, conn: &mut PoolConnection<Sqlite>) -> anyhow::Result<()> {
+pub async fn append_cfd_state(cfd: &Cfd, conn: &mut PoolConnection<Sqlite>) -> Result<()> {
     let cfd_id = load_cfd_id_by_order_uuid(cfd.id(), conn).await?;
     let current_state = load_latest_cfd_state(cfd_id, conn)
         .await
@@ -110,7 +110,7 @@ pub async fn append_cfd_state(cfd: &Cfd, conn: &mut PoolConnection<Sqlite>) -> a
 async fn load_cfd_id_by_order_uuid(
     order_uuid: OrderId,
     conn: &mut PoolConnection<Sqlite>,
-) -> anyhow::Result<i64> {
+) -> Result<i64> {
     let cfd_id = sqlx::query!(
         r#"
         select
@@ -128,10 +128,7 @@ async fn load_cfd_id_by_order_uuid(
     Ok(cfd_id)
 }
 
-async fn load_latest_cfd_state(
-    cfd_id: i64,
-    conn: &mut PoolConnection<Sqlite>,
-) -> anyhow::Result<CfdState> {
+async fn load_latest_cfd_state(cfd_id: i64, conn: &mut PoolConnection<Sqlite>) -> Result<CfdState> {
     let latest_cfd_state = sqlx::query!(
         r#"
         select
@@ -214,7 +211,7 @@ pub async fn load_cfd(order_id: OrderId, conn: &mut PoolConnection<Sqlite>) -> R
 }
 
 /// Loads all CFDs with the latest state as the CFD state
-pub async fn load_all_cfds(conn: &mut PoolConnection<Sqlite>) -> anyhow::Result<Vec<Cfd>> {
+pub async fn load_all_cfds(conn: &mut PoolConnection<Sqlite>) -> Result<Vec<Cfd>> {
     let rows = sqlx::query!(
         r#"
         with state as (
