@@ -26,7 +26,6 @@ use daemon::HEARTBEAT_INTERVAL;
 use daemon::N_PAYOUTS;
 use daemon::SETTLEMENT_INTERVAL;
 use rust_decimal_macros::dec;
-use sqlx::SqlitePool;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::Duration;
@@ -139,7 +138,7 @@ impl Maker {
     }
 
     pub async fn start(config: &MakerConfig, listener: TcpListener) -> Self {
-        let db = in_memory_db().await;
+        let db = db::memory().await.unwrap();
 
         let mut mocks = mocks::Mocks::default();
         let (oracle, monitor, wallet) = mocks::create_actors(&mocks);
@@ -266,7 +265,7 @@ impl Taker {
     ) -> Self {
         let (identity_pk, identity_sk) = config.seed.derive_identity();
 
-        let db = in_memory_db().await;
+        let db = db::memory().await.unwrap();
 
         let mut mocks = mocks::Mocks::default();
         let (oracle, monitor, wallet) = mocks::create_actors(&mocks);
@@ -363,17 +362,6 @@ macro_rules! deliver_event {
             $maker.system.cfd_actor_addr.send($event).await.unwrap();
         }
     };
-}
-
-async fn in_memory_db() -> SqlitePool {
-    // Note: Every :memory: database is distinct from every other. So, opening two database
-    // connections each with the filename ":memory:" will create two independent in-memory
-    // databases. see: https://www.sqlite.org/inmemorydb.html
-    let pool = SqlitePool::connect(":memory:").await.unwrap();
-
-    db::run_migrations(&pool).await.unwrap();
-
-    pool
 }
 
 pub fn dummy_price() -> Price {
