@@ -10,7 +10,11 @@ use std::mem;
 use time::Duration;
 
 pub async fn run_migrations(pool: &SqlitePool) -> anyhow::Result<()> {
-    sqlx::migrate!("./migrations").run(pool).await?;
+    sqlx::migrate!("./migrations")
+        .run(pool)
+        .await
+        .context("Failed to run migrations")?;
+
     Ok(())
 }
 

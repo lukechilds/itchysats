@@ -224,9 +224,7 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    db::run_migrations(&db)
-        .await
-        .context("Db migrations failed")?;
+    db::run_migrations(&db).await?;
 
     // Create actors
     housekeeping::new(&db, &wallet).await?;
