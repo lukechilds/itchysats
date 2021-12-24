@@ -1,7 +1,8 @@
 use crate::address_map::ActorName;
 use crate::address_map::Stopping;
 use crate::maker_inc_connections;
-use crate::model::cfd::{Cfd, CollaborativeSettlementCompleted};
+use crate::model::cfd::Cfd;
+use crate::model::cfd::CollaborativeSettlementCompleted;
 use crate::model::cfd::Completed;
 use crate::model::cfd::SettlementKind;
 use crate::model::cfd::SettlementProposal;
