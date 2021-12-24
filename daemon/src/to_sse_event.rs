@@ -11,7 +11,9 @@ use crate::to_sse_event::ConnectionCloseReason::TakerVersionOutdated;
 use bdk::bitcoin::Amount;
 use rocket::request::FromParam;
 use rocket::response::stream::Event;
+use serde::ser::SerializeStruct;
 use serde::Serialize;
+use time::macros::format_description;
 
 impl<'v> FromParam<'v> for CfdAction {
     type Error = serde_plain::Error;
@@ -107,5 +109,68 @@ impl ToSseEvent for connection::ConnectionStatus {
 impl ToSseEvent for Option<Quote> {
     fn to_sse_event(&self) -> Event {
         Event::json(self).event("quote")
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Heartbeat(time::OffsetDateTime);
+
+impl Heartbeat {
+    pub fn new() -> Self {
+        Self(time::OffsetDateTime::now_utc())
+    }
+}
+
+impl Default for Heartbeat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl serde::Serialize for Heartbeat {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut heartbeat = serializer.serialize_struct("Heartbeat", 2)?;
+        heartbeat.serialize_field("event", "heartbeat")?;
+
+        let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+        let timestamp = self.0.format(format).expect("should always format");
+        heartbeat.serialize_field("timestamp", &timestamp)?;
+
+        heartbeat.end()
+    }
+}
+
+impl ToSseEvent for Heartbeat {
+    fn to_sse_event(&self) -> Event {
+        Event::json(self).event("heartbeat")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_test::Token;
+
+    #[test]
+    fn heartbeat_serialization() {
+        let heartbeat = Heartbeat(time::OffsetDateTime::UNIX_EPOCH);
+
+        serde_test::assert_ser_tokens(
+            &heartbeat,
+            &[
+                Token::Struct {
+                    name: "Heartbeat",
+                    len: 2,
+                },
+                Token::Str("event"),
+                Token::Str("heartbeat"),
+                Token::Str("timestamp"),
+                Token::Str("1970-01-01T00:00:00"),
+                Token::StructEnd,
+            ],
+        );
     }
 }
