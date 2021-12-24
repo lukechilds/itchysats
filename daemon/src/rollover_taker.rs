@@ -95,7 +95,7 @@ impl Actor {
             },
             SettlementKind::Outgoing,
         )))
-        .await?;
+        .await;
 
         Ok(())
     }
@@ -115,7 +115,7 @@ impl Actor {
         let order_id = self.cfd.id();
         tracing::info!(%order_id, "Rollover proposal got accepted");
 
-        self.update_proposal(None).await?;
+        self.update_proposal(None).await;
 
         let (rollover_params, dlc, _) = self.cfd.start_rollover()?;
         let (sender, receiver) = mpsc::unbounded::<RollOverMsg>();
@@ -149,8 +149,7 @@ impl Actor {
     }
 
     pub async fn forward_protocol_msg(&mut self, msg: wire::RollOverMsg) -> Result<()> {
-        self
-            .rollover_msg_sender
+        self.rollover_msg_sender
             .as_mut()
             .context("Rollover task is not active")? // Sender is set once `Accepted` is received.
             .send(msg)
@@ -160,18 +159,18 @@ impl Actor {
         Ok(())
     }
 
-    async fn update_proposal(
-        &self,
-        proposal: Option<(RolloverProposal, SettlementKind)>,
-    ) -> Result<()> {
-        self.projection
+    /// Update the proposal state in the projection actor.
+    ///
+    /// This function is non-fallible because we don't care if the actor goes away, it is not
+    /// critical to continue with the protocol.
+    async fn update_proposal(&self, proposal: Option<(RolloverProposal, SettlementKind)>) {
+        let _ = self
+            .projection
             .send(UpdateRollOverProposal {
                 order: self.cfd.id(),
                 proposal,
             })
-            .await?;
-
-        Ok(())
+            .await;
     }
 
     async fn complete(&mut self, completed: RolloverCompleted, ctx: &mut xtra::Context<Self>) {
