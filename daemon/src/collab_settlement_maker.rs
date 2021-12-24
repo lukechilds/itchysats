@@ -1,8 +1,7 @@
 use crate::address_map::ActorName;
 use crate::address_map::Stopping;
 use crate::maker_inc_connections;
-use crate::model::cfd::Cfd;
-use crate::model::cfd::CollaborativeSettlement;
+use crate::model::cfd::{Cfd, CollaborativeSettlementCompleted};
 use crate::model::cfd::Completed;
 use crate::model::cfd::SettlementKind;
 use crate::model::cfd::SettlementProposal;
@@ -18,7 +17,7 @@ use xtra_productivity::xtra_productivity;
 pub struct Actor {
     cfd: Cfd,
     projection: xtra::Address<projection::Actor>,
-    on_completed: Box<dyn MessageChannel<Completed<CollaborativeSettlement>>>,
+    on_completed: Box<dyn MessageChannel<CollaborativeSettlementCompleted>>,
     proposal: SettlementProposal,
     taker_id: Identity,
     connections: Box<dyn MessageChannel<maker_inc_connections::settlement::Response>>,
@@ -115,7 +114,7 @@ impl Actor {
         cfd: Cfd,
         proposal: SettlementProposal,
         projection: xtra::Address<projection::Actor>,
-        on_completed: &(impl MessageChannel<Completed<CollaborativeSettlement>> + 'static),
+        on_completed: &(impl MessageChannel<CollaborativeSettlementCompleted> + 'static),
         taker_id: Identity,
         connections: &(impl MessageChannel<maker_inc_connections::settlement::Response> + 'static),
         (on_stopping0, on_stopping1): (
@@ -152,7 +151,7 @@ impl Actor {
 
     async fn complete(
         &mut self,
-        completed: Completed<CollaborativeSettlement>,
+        completed: CollaborativeSettlementCompleted,
         ctx: &mut xtra::Context<Self>,
     ) {
         let _ = self

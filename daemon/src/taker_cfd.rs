@@ -5,10 +5,8 @@ use crate::cfd_actors::load_cfd;
 use crate::collab_settlement_taker;
 use crate::connection;
 use crate::db::append_event;
-use crate::model::cfd::Cfd;
+use crate::model::cfd::{Cfd, CollaborativeSettlementCompleted};
 use crate::model::cfd::CfdEvent;
-use crate::model::cfd::CollaborativeSettlement;
-use crate::model::cfd::Completed;
 use crate::model::cfd::Order;
 use crate::model::cfd::OrderId;
 use crate::model::cfd::Origin;
@@ -164,7 +162,7 @@ where
 {
     async fn handle_settlement_completed(
         &mut self,
-        msg: Completed<CollaborativeSettlement>,
+        msg: CollaborativeSettlementCompleted,
     ) -> Result<()> {
         let order_id = msg.order_id();
         let mut conn = self.db.acquire().await?;
