@@ -3,13 +3,16 @@ use crate::address_map::Stopping;
 use crate::cfd_actors::load_cfd;
 use crate::connection;
 use crate::db;
+use crate::model::cfd::CfdEvent;
 use crate::model::cfd::OrderId;
 use crate::model::cfd::RolloverCompleted;
 use crate::monitor;
+use crate::monitor::MonitorParams;
 use crate::oracle;
 use crate::projection;
 use crate::rollover_taker;
 use crate::Tasks;
+use anyhow::bail;
 use anyhow::Result;
 use async_trait::async_trait;
 use maia::secp256k1_zkp::schnorrsig;
@@ -23,7 +26,7 @@ pub struct Actor<O, M> {
     oracle_pk: schnorrsig::PublicKey,
     projection_actor: Address<projection::Actor>,
     conn_actor: Address<connection::Actor>,
-    _monitor_actor: Address<M>,
+    monitor_actor: Address<M>,
     oracle_actor: Address<O>,
     n_payouts: usize,
 
@@ -47,7 +50,7 @@ impl<O, M> Actor<O, M> {
             oracle_pk,
             projection_actor,
             conn_actor,
-            _monitor_actor: monitor_actor,
+            monitor_actor,
             oracle_actor,
             n_payouts,
             rollover_actors: AddressMap::default(),
@@ -112,8 +115,43 @@ where
     M: xtra::Handler<monitor::StartMonitoring>,
     O: xtra::Handler<oracle::MonitorAttestation> + xtra::Handler<oracle::GetAnnouncement>,
 {
-    async fn handle_rollover_completed(&mut self, _: RolloverCompleted) -> Result<()> {
-        // TODO: Implement this in terms of event sourcing
+    async fn handle_rollover_completed(&mut self, msg: RolloverCompleted) -> Result<()> {
+        let mut conn = self.db.acquire().await?;
+        let order_id = msg.order_id();
+
+        let cfd = load_cfd(order_id, &mut conn).await?;
+
+        let event = match cfd.rollover(msg)? {
+            Some(event) => event,
+            None => return Ok(()),
+        };
+
+        db::append_event(event.clone(), &mut conn).await?;
+
+        self.projection_actor.send(projection::CfdsChanged).await?;
+
+        let dlc = match event.event {
+            CfdEvent::RolloverCompleted { dlc } => dlc,
+            CfdEvent::RolloverFailed | CfdEvent::RolloverRejected => {
+                return Ok(());
+            }
+            _ => bail!("Unexpected event {:?}", event.event),
+        };
+
+        tracing::info!("Setup complete, publishing on chain now");
+
+        self.monitor_actor
+            .send(monitor::StartMonitoring {
+                id: order_id,
+                params: MonitorParams::new(dlc.clone()),
+            })
+            .await?;
+
+        self.oracle_actor
+            .send(oracle::MonitorAttestation {
+                event_id: dlc.settlement_event_id,
+            })
+            .await?;
 
         Ok(())
     }
