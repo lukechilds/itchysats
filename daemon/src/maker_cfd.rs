@@ -540,11 +540,6 @@ where
     M: xtra::Handler<monitor::StartMonitoring>,
     O: xtra::Handler<oracle::MonitorAttestation>,
 {
-    async fn handle_roll_over_completed(&mut self, _: Completed) -> Result<()> {
-        // TODO: Implement this in terms of event sourcing
-
-        Ok(())
-    }
 }
 
 impl<O, M, T, W> Actor<O, M, T, W>
@@ -718,8 +713,10 @@ where
     M: xtra::Handler<monitor::StartMonitoring>,
     O: xtra::Handler<oracle::MonitorAttestation>,
 {
-    async fn handle(&mut self, msg: Completed, _ctx: &mut Context<Self>) -> Result<()> {
-        self.handle_roll_over_completed(msg).await
+    async fn handle(&mut self, _: Completed, _ctx: &mut Context<Self>) -> Result<()> {
+        // TODO: Implement this in terms of event sourcing
+
+        Ok(())
     }
 }
 
